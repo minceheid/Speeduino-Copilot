@@ -10,3 +10,6 @@ By default, on boot, the code will create rolling logfiles of filename "test_000
 
 # Contributors
 Contributations welcome
+
+# Alternatives
+Also available for a similar use-case is SpeedyLogger https://github.com/ric355/SpeedyLogger, based on a Raspberry Pi Zero.
