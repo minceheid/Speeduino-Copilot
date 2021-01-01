@@ -6,6 +6,7 @@ This project is intended as a Teensy co-processor for the purposes of securing E
 Although largely functional, this is not currently fully completed. Not all real time variables are made available. It's also possible that we could include faciltiies for a GPS/RTC module, to make the output more useful.
 
 # Behaviour
+*Note* Early development - I do not guarantee that the data is correct or even valid. 
 By default, on boot, the code will create rolling logfiles of filename "test_0000.mlg", and will increment the filename every 1000KB. Existing files will be overwritten. In due course, it's likely that it should have a second counter and not overwrite the same file sequence.
 
 # Contributors
