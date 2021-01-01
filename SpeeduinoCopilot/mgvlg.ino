@@ -96,7 +96,7 @@ void _check_mgvlg_fields() {
   cout << "check fields\n";
   unsigned int checkoffset=0;
 
-  for (int i=0;i<MGVLG_SCALAR_COUNT;i++) {
+  for (int i=0;i<MGVLG_FIELD_COUNT;i++) {
       if (checkoffset!=mgvlg_fields[i].offset) {
       cout << "ERROR: Inconsistent offsets in mgvlg_fields["<<i<<"].offset="<<mgvlg_fields[i].offset<<" but calculated from preceeding data types as "<<checkoffset<<"\n";
       errorHalt("Cannot continue");
@@ -116,12 +116,7 @@ void _check_mgvlg_fields() {
       default:
         errorHalt("Unknown datatype");
     }
- 
-
- 
-   
   }
-  
 }
 
 
@@ -199,7 +194,7 @@ int _buildHeaders() {
 
   // calculate record length
   int recordLength=0;
-  for (int i=0;i<MGVLG_SCALAR_COUNT;i++) {
+  for (int i=0;i<MGVLG_FIELD_COUNT;i++) {
     switch (mgvlg_fields[i].type) {
       case MGVLG_DATATYPE_U08:
       case MGVLG_DATATYPE_S08:
@@ -221,12 +216,12 @@ int _buildHeaders() {
   _writeU16(0x0c,0);           // Info Data Start - this field appears to be too short to store the address, so don't populate
   _writeU32(0x0e,0);           // Data Begin Index
   _writeU16(0x12,recordLength);         // Record Length
-  _writeU16(0x14,MGVLG_SCALAR_COUNT);          // Num Logger Fields
+  _writeU16(0x14,MGVLG_FIELD_COUNT);          // Num Logger Fields
 
-  cout << "record length: "<<recordLength << " num fields:" <<MGVLG_SCALAR_COUNT<< "\n";
+  cout << "record length: "<<recordLength << " num fields:" <<MGVLG_FIELD_COUNT<< "\n";
   offset=0x16;
 
-  for (int i=0;i<MGVLG_SCALAR_COUNT;i++) {
+  for (int i=0;i<MGVLG_FIELD_COUNT;i++) {
 //   Serial.println(mgvlg_fields[i].name);
    _writeU8(offset,mgvlg_fields[i].type);
    strncpy((char*)buffer+offset+1,mgvlg_fields[i].name,34);
@@ -297,7 +292,7 @@ void writeRecord(byte *d) {
   
   int crc=0;
   // loop around each scalar in order
-  for (int i=0; i<MGVLG_SCALAR_COUNT; i++) {
+  for (int i=0; i<MGVLG_FIELD_COUNT; i++) {
  // for (int i=0; i<2; i++) {
 
     switch (mgvlg_fields[i].type) {

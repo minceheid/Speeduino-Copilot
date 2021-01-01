@@ -14,7 +14,7 @@
 #include "mgvlg.h"
 
 #define PACKETLENGTH 256
-#define DEBUG
+//#define DEBUG
 IntervalTimer Timer1Hz;
 IntervalTimer Timer10Hz;
 
@@ -62,11 +62,10 @@ void ISR_10Hz() {
 
 void loop() {
   // structure for data recieved from Speeduino
-  byte dataRecieved[PACKETLENGTH];
+  byte dataReceived[PACKETLENGTH];
 
   if (FLAG_10Hz) {
     FLAG_10Hz=false;
-
     // Wait for serial to be available
     while(Serial1.availableForWrite()==0) {}
     Serial1.write("n");
@@ -75,7 +74,7 @@ void loop() {
     byte type=Serial1.read();
     byte bytesIncoming=Serial1.read();
   
-    int bytesRead=Serial1.readBytes((byte*)dataRecieved,(int)bytesIncoming);
+    int bytesRead=Serial1.readBytes((byte*)dataReceived,(int)bytesIncoming);
 
     if (bytesRead<bytesIncoming) {
       Serial.println("WARNING: Short read");
@@ -91,10 +90,10 @@ void loop() {
     Serial.print(" bytesIncoming:");
     Serial.println((int)bytesIncoming);
     Serial.print("currentStatus.sec1: ");
-    Serial.println((int)dataRecieved[0]);
+    Serial.println((int)dataReceived[0]);
 #endif //DEBUG
     // write a data record to the logfile
-    writeRecord((byte*)dataRecieved);
+    writeRecord((byte*)dataReceived);
   }
    
   
