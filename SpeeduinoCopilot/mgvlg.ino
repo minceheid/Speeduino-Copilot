@@ -69,6 +69,10 @@ unsigned long mgvlgRecord=0;
 // Init - used to set up the environment
 void mgvlgInit() {
   Serial.println("MGVLG Init");
+  
+  // Check the main datastructure
+  _check_mgvlg_fields();
+  
   // Initialize the SD card.
   if (!sd.begin(SD_CONFIG)) {
     Serial.println("SD Card Failed to initialise");
@@ -83,6 +87,44 @@ void mgvlgInit() {
   _buildHeaders();
   _flushBuffer();
 }
+
+//////////////////////////
+// Check the field datastructure for consistency - this should only ever be a problem after an update.
+//
+
+void _check_mgvlg_fields() {
+  cout << "check fields\n";
+  unsigned int checkoffset=0;
+
+  for (int i=0;i<MGVLG_SCALAR_COUNT;i++) {
+      if (checkoffset!=mgvlg_fields[i].offset) {
+      cout << "ERROR: Inconsistent offsets in mgvlg_fields["<<i<<"].offset="<<mgvlg_fields[i].offset<<" but calculated from preceeding data types as "<<checkoffset<<"\n";
+      errorHalt("Cannot continue");
+    }
+    switch (mgvlg_fields[i].type) {
+      case MGVLG_DATATYPE_U08:
+      case MGVLG_DATATYPE_S08:
+        checkoffset++;
+        break;
+      case MGVLG_DATATYPE_U16:
+      case MGVLG_DATATYPE_S16:
+        checkoffset+=2;
+        break;
+      case MGVLG_DATATYPE_F32:
+        checkoffset+=4;
+        break;
+      default:
+        errorHalt("Unknown datatype");
+    }
+ 
+
+ 
+   
+  }
+  
+}
+
+
 
 
 //////////////////////////
@@ -246,7 +288,7 @@ int _flushBuffer() {
 // might require a bit of restructuring of the data structures. Need to more fully understand how that is
 // being laid out in the MGVLG
 
-void writeRecord(speeduinoDataPacket *d) {
+void writeRecord(byte *d) {
 
   _writeU8(offset++,0x00);//Block Type - always 0
   _writeU8(offset++,(byte)(mgvlgRecord%256)); // Rolling Counter

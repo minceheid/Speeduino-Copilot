@@ -12,7 +12,11 @@
 // accessible area.
 
 #include "mgvlg.h"
-#include "speeduino.h"
+
+#define PACKETLENGTH 256
+#define DEBUG
+IntervalTimer Timer1Hz;
+IntervalTimer Timer10Hz;
 
 
 void errorHalt(const char* msg) {
@@ -23,42 +27,84 @@ void errorHalt(const char* msg) {
 
 void setup()
 {
-  delay(1000);
   Serial.begin(115200);
   Serial1.begin(115200);
   Serial.println("Initialising");
-  delay(1000);
+  delay(2000);
 
   // Initialise the SD and write MGVLG headers ready for data
   mgvlgInit();
- 
+
+#ifdef GPS
+  // check and set date/time from GPS - this might necessitate an additional startup delay
+#endif //GPS
+  // Inexpensive GPS modules update at 1Hz so let's only check it once a second. 
+  Timer1Hz.begin(ISR_1Hz,1000000); 
+  Timer10Hz.begin(ISR_10Hz,100000); 
+  
 }
 
+////////////////////////////////
+// 1Hz ISR routine
+volatile boolean FLAG_1Hz=false;
+void ISR_1Hz() {
+  // Let's just set a flag that the main loop will pick up
+  FLAG_1Hz=true;
+}
+volatile boolean FLAG_10Hz=false;
+void ISR_10Hz() {
+  // Let's just set a flag that the main loop will pick up
+  FLAG_10Hz=true;
+}
+
+////////////////////////////////
+// Main loop
 
 void loop() {
-  Serial.println("Starting");
-
   // structure for data recieved from Speeduino
-  speeduinoDataPacket dataRecieved;
+  byte dataRecieved[PACKETLENGTH];
 
-  Serial.println("Starting - send \"A\"");
-  Serial1.setTimeout(2000);
-  // Wait for serial to be available
-  while(Serial1.availableForWrite()==0) {}
-  Serial1.write("A");
+  if (FLAG_10Hz) {
+    FLAG_10Hz=false;
 
-  Serial.println("Waiting for \"A\"");
-  // We expect to see a confirmation of an "A" back from Speeduino
-  if (Serial1.find("A")) {
-    Serial.println("Recieved \"A\"");
-    if (Serial1.available() > 0) {
-        // read the incoming byte:
-        Serial1.readBytes((byte *)&dataRecieved,PACKETLENGTH);
-        Serial.print("currentStatus.sec1: ");
-        Serial.println(dataRecieved.secl);
+    // Wait for serial to be available
+    while(Serial1.availableForWrite()==0) {}
+    Serial1.write("n");
+    while (Serial1.available()<3) {}
+    byte n=Serial1.read();
+    byte type=Serial1.read();
+    byte bytesIncoming=Serial1.read();
+  
+    int bytesRead=Serial1.readBytes((byte*)dataRecieved,(int)bytesIncoming);
 
-        // write a data record to the logfile
-        writeRecord(&dataRecieved);
-     }
-   }
+    if (bytesRead<bytesIncoming) {
+      Serial.println("WARNING: Short read");
+    }
+
+    type+=0;
+    n+=0;
+#ifdef DEBUG
+    Serial.print("n:");
+    Serial.print((int)n);
+    Serial.print(" type:");
+    Serial.print((int)type);
+    Serial.print(" bytesIncoming:");
+    Serial.println((int)bytesIncoming);
+    Serial.print("currentStatus.sec1: ");
+    Serial.println((int)dataRecieved[0]);
+#endif //DEBUG
+    // write a data record to the logfile
+    writeRecord((byte*)dataRecieved);
+  }
+   
+  
+  if (FLAG_1Hz) {
+     FLAG_1Hz=false;
+     Serial.println("1Hz Routine");
+#ifdef GPS
+     Serial.println("Get and update GPS coordinates, if we have position lock"0;
+     // check and set date/time from GPS
+#endif
+
+  }
 }
