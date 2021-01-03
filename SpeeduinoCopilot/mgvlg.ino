@@ -63,7 +63,7 @@ unsigned long offset=0;
 unsigned long long fileoffset=0;
 unsigned long mgvlgRecord=0;
 
-#define MAX_FILE_LENGTH_KB 100
+#define MAX_FILE_LENGTH_KB 1024
 
 //////////////////////////
 // Init - used to set up the environment
@@ -99,7 +99,7 @@ void _check_mgvlg_fields() {
   for (int i=0;i<MGVLG_FIELD_COUNT;i++) {
       if (checkoffset!=mgvlg_fields[i].offset) {
       cout << "ERROR: Inconsistent offsets in mgvlg_fields["<<i<<"].offset="<<mgvlg_fields[i].offset<<" but calculated from preceeding data types as "<<checkoffset<<"\n";
-      errorHalt("Cannot continue");
+      //errorHalt("Cannot continue");
     }
     switch (mgvlg_fields[i].type) {
       case MGVLG_DATATYPE_U08:
@@ -137,6 +137,12 @@ void _openFile(int filenumber) {
   Serial.print("Opening: ");
   Serial.println(filename);
 
+  // Delete existing file
+  if (sd.exists(filename)) {
+    cout << "Deleting old file\n";
+    sd.remove(filename);
+  }
+
   // Create a file using a path.
   if (!file.open(filename, O_WRONLY | O_CREAT)) {
     char errormsg[128];
@@ -156,29 +162,41 @@ void _closeFile() {
 // Write values to the buffer, taking care of endian conversion where necessary
 // Note that the MGVLG format expects Big Endian, and Teensy uses Little Endian
 
-void _writeU8(int offset,unsigned short value) {
-  buffer[offset+0]=value & 0xff; 
-}
-void _writeU16(int offset,unsigned long value) {
-  buffer[offset+0]=value/256 & 0xff;
-  buffer[offset+1]=value & 0xff; 
+void _writeU08(int offset,byte value) {
+  byte *p;
+  p=(byte*)&value;
+  for (unsigned int i=0;i<sizeof(value);i++) { buffer[offset+i]=p[sizeof(value)-i-1];   } 
 }
 
-void _writeU32(int offset,unsigned long long value) {
-  buffer[offset]=value/256/256/256 & 0xff ;
-  buffer[offset+1]=value/256/256 & 0xff;
-  buffer[offset+2]=value/256 & 0xff;
-  buffer[offset+3]=value & 0xff; 
+void _writeS08(int offset,signed char value) {
+  byte *p;
+  p=(byte*)&value;
+  for (unsigned int i=0;i<sizeof(value);i++) { buffer[offset+i]=p[sizeof(value)-i-1];   }
 }
+
+void _writeU16(int offset, unsigned short value) {
+  byte *p;
+  p=(byte*)&value;
+  for (unsigned int i=0;i<sizeof(value);i++) { buffer[offset+i]=p[sizeof(value)-i-1];   }
+}
+
+void _writeS16(int offset, short value) {
+  byte *p;
+  p=(byte*)&value;
+  for (unsigned int i=0;i<sizeof(value);i++) { buffer[offset+i]=p[sizeof(value)-i-1]; }
+}
+
+void _writeU32(int offset, unsigned long value) {
+  byte *p;
+  p=(byte*)&value;
+  for (unsigned int i=0;i<sizeof(value);i++) { buffer[offset+i]=p[sizeof(value)-i-1]; }
+}
+
 
 void _writeF32(int offset,float value) {
   byte *p;
   p=(byte*)&value;
-    
-  buffer[offset]=p[3];
-  buffer[offset+1]=p[2];
-  buffer[offset+2]=p[1];
-  buffer[offset+3]=p[0]; 
+  for (unsigned int i=0;i<sizeof(value);i++) { buffer[offset+i]=p[sizeof(value)-i-1]; }
 }
 
 //////////////////////////
@@ -222,15 +240,16 @@ int _buildHeaders() {
   offset=0x16;
 
   for (int i=0;i<MGVLG_FIELD_COUNT;i++) {
-//   Serial.println(mgvlg_fields[i].name);
-   _writeU8(offset,mgvlg_fields[i].type);
+   cout<<i<<" type offset:"<<offset<<"\n";
+   _writeU08(offset,mgvlg_fields[i].type);
    strncpy((char*)buffer+offset+1,mgvlg_fields[i].name,34);
+   
    strncpy((char*)buffer+offset+35,mgvlg_fields[i].units,10); 
 
-   _writeU8(offset+45,mgvlg_fields[i].style);
+   _writeU08(offset+45,mgvlg_fields[i].style);
    _writeF32(offset+46,mgvlg_fields[i].scale);
    _writeF32(offset+50,mgvlg_fields[i].transform);
-   _writeU8(offset+54,mgvlg_fields[i].digits);
+   _writeS08(offset+54,mgvlg_fields[i].digits);
    offset=offset+55;
   }
 
@@ -251,8 +270,9 @@ int _buildHeaders() {
 int _flushBuffer() {
 
 #ifdef DEBUG
+  cout << "flushing data: ";
   int j=offset;
-  if (j>32) { j=32; }
+ // if (j>32) { j=32; }
   for (int i=0; i<j; i++) {
     cout << hex << (int)buffer[i] << ":";  
   }
@@ -283,10 +303,11 @@ int _flushBuffer() {
 // might require a bit of restructuring of the data structures. Need to more fully understand how that is
 // being laid out in the MGVLG
 
-void writeRecord(byte *d) {
+void writeRecord(byte *d,double lat,double lng) {
+  void *pv;
 
-  _writeU8(offset++,0x00);//Block Type - always 0
-  _writeU8(offset++,(byte)(mgvlgRecord%256)); // Rolling Counter
+  _writeU08(offset++,0x00);//Block Type - always 0
+  _writeU08(offset++,(byte)(mgvlgRecord%256)); // Rolling Counter
   _writeU16(offset,(unsigned long)mgvlgRecord%65536); // Timestamp 10us/bit Note fudge for not having RTC
   offset+=2;
   
@@ -301,40 +322,34 @@ void writeRecord(byte *d) {
         if (mgvlg_fields[i].offset>=0) {
           char *dd=(char *)d;
 
-          _writeU8(offset,dd[mgvlg_fields[i].offset]);
+          _writeU08(offset,dd[mgvlg_fields[i].offset]);
           crc=(crc+dd[mgvlg_fields[i].offset])%256;
          }
         offset++;
         break;
           
       case MGVLG_DATATYPE_U16:
+        pv=d+mgvlg_fields[i].offset;
+        {
+          unsigned short value;
+          value=*(unsigned short*)pv;
+
+          _writeU16(offset,value);
+          for (unsigned int j=0;j<sizeof(value);j++) { crc=(crc+buffer[offset+j])%256; }
+        }
+        offset+=sizeof(unsigned short);
+        break;
+
       case MGVLG_DATATYPE_S16:
-
-        if (mgvlg_fields[i].offset>=0) {
-          char *dd=(char *)d;
-
-          _writeU8(offset,dd[mgvlg_fields[i].offset+1]);
-          _writeU8(offset+1,dd[mgvlg_fields[i].offset]);
-
-          crc=(crc+dd[mgvlg_fields[i].offset])%256;
-          }
-        offset+=2;
+        pv=d+mgvlg_fields[i].offset;
+        {short value;
+        value=*(short*)pv;
         
+        _writeS16(offset,value);
+
+        for (unsigned int j=0;j<sizeof(value);j++) { crc=(crc+buffer[offset+j])%256; }
+        offset+=sizeof(short);}
         break;
-
-/* NOT YET IMPLEMENTED 
-      case MGVLG_DATATYPE_F32:
-        if (mgvlg_fields[i].offset>=0) {
-          cout << "#" << mgvlgRecord  <<"\n";
-
-          _writeF32(offset,1); // not implemented yet
-          crc=(crc+buffer[offset+3])%256;
-          cout << "buffer " << " " << (int)buffer[offset] << ":" << (int)buffer[offset+1] << (int)buffer[offset+2] << ":" << (int)buffer[offset+3] << "\n";
-
-          }
-        offset+=4;
-        break;
- */
 
       default:
         errorHalt("Unknown datatype");
@@ -358,3 +373,23 @@ void writeRecord(byte *d) {
     _flushBuffer();
   }
 }
+
+//////////////////////////
+// writeMarker - writes a marker to the datafile, intended to be called via hardware
+// interrupt from a momentary pushbutton. Markers are positions with the data log that 
+// indicate a graphical mark, generally displayed as a veritcal red line in the log viewer 
+// to more easily locate specific events.
+
+void writeMarker(double lat,double lng) {
+#ifdef DEBUG
+  cout << "Writing marker\n";
+#endif // DEBUG
+  _writeU08(offset++,0x01);//Block Type - always 1 for a Marker
+  _writeU08(offset++,(byte)(mgvlgRecord%256)); // Rolling Counter
+  _writeU16(offset,(unsigned long)0); // Timestamp 10us/bit Note fudge for not having RTC
+  offset+=2;
+  strncpy((char*)buffer+offset,"MARKER\0",7);
+  offset+=7;
+  mgvlgRecord++; 
+}
+  

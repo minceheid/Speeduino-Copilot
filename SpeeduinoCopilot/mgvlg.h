@@ -1,7 +1,8 @@
 ////////////////////////////
 // Public functions
 void mgvlgInit();
-void writeRecord(byte *d);
+void writeRecord(byte *d,double lat, double lng);
+void writeMarker(double lat, double lng);
 
 
 ////////////////////////////
@@ -38,9 +39,9 @@ typedef struct {
 } mgvlgFieldType;
 
 
-const int MGVLG_FIELD_COUNT=53;
-mgvlgFieldType mgvlg_fields[MGVLG_FIELD_COUNT]= {
+mgvlgFieldType mgvlg_fields[]= {
 //{Offset,Type,Name,Units,Display Style,scale,transform,digits,},
+
 {0,MGVLG_DATATYPE_U08,"SecL", "sec",  MGVLG_STYLE_FLOAT,  1,  0,  0},
 {1, MGVLG_DATATYPE_U08, "Status", "bits", MGVLG_STYLE_FLOAT,  1,  0,  0},
 {2, MGVLG_DATATYPE_U08, "Engine", "bits", MGVLG_STYLE_FLOAT,  1,  0,  0},
@@ -63,7 +64,7 @@ mgvlgFieldType mgvlg_fields[MGVLG_FIELD_COUNT]= {
 {22,  MGVLG_DATATYPE_U08, "TPS DOT",  "%/s",  MGVLG_STYLE_FLOAT,  10, 0,  0},
 {23,  MGVLG_DATATYPE_S08, "Advance",  "deg",  MGVLG_STYLE_FLOAT,  1,  0,  0},
 {24,  MGVLG_DATATYPE_U08, "TPS",  "%",  MGVLG_STYLE_FLOAT,  1,  0,  0},
-{25,  MGVLG_DATATYPE_U16, "Loops per second", "", MGVLG_STYLE_FLOAT,  1,  0,  0},
+{25,  MGVLG_DATATYPE_U16, "Speeduino Loops per second", "", MGVLG_STYLE_FLOAT,  1,  0,  0},
 {27,  MGVLG_DATATYPE_U16, "Speeduino Free RAM", "", MGVLG_STYLE_FLOAT,  1,  0,  0},
 {29,  MGVLG_DATATYPE_U08, "Boost Target", "kPa",  MGVLG_STYLE_FLOAT,  2,  0,  0},
 {30,  MGVLG_DATATYPE_U08, "Boost Duty", "%",  MGVLG_STYLE_FLOAT,  1,  0,  0},
@@ -95,12 +96,13 @@ mgvlgFieldType mgvlg_fields[MGVLG_FIELD_COUNT]= {
 {73,  MGVLG_DATATYPE_U08, "TPS ADC",  "", MGVLG_STYLE_FLOAT,  1,  0,  0},
 {74,  MGVLG_DATATYPE_U08, "Error",  "", MGVLG_STYLE_FLOAT,  1,  0,  0},
 };
+const int MGVLG_FIELD_COUNT=sizeof(mgvlg_fields)/sizeof(mgvlgFieldType);
 
-/*
 
-Serial 0 fields...
 
-mgvlgFieldType mgvlg_fields[MGVLG_FIELD_COUNT]= {
+/*Serial 0 fields...
+
+mgvlgFieldType mgvlg_fields[]= {
 //{Offset,Type,Name,Units,Display Style,scale,transform,digits,},
 {0,  MGVLG_DATATYPE_U08, "SecL", "sec",  MGVLG_STYLE_FLOAT,  1,  0,  0},
 {1, MGVLG_DATATYPE_U08, "Status", "bits", MGVLG_STYLE_FLOAT,  1,  0,  0},
